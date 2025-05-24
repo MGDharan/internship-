@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dress Shop AI Assistant</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body { font-family: Arial; margin: 0; padding: 0; background: #f0f0f0; }
+        .main-container { display: flex; min-height: 100vh; }
+        
+        /* Left Sidebar */
+        .dress-showcase { width: 300px; background: white; padding: 20px; overflow-y: auto; }
+        .dress-card { margin-bottom: 20px; border: 1px solid #eee; border-radius: 10px; padding: 15px; }
+        .dress-image { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; }
+        .dress-details { margin-top: 10px; }
+        .dress-price { color: #2c5282; font-weight: bold; }
+        
+        /* Chat Container */
+        .chat-container { flex: 1; display: flex; flex-direction: column; background: white; margin: 20px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .chat-header { padding: 20px; border-bottom: 1px solid #eee; }
+        .chat-history { flex: 1; overflow-y: auto; padding: 20px; }
+        .message { max-width: 80%; margin: 15px 0; padding: 15px; border-radius: 10px; line-height: 1.5; }
+        .user-message { background: #e3f2fd; margin-left: auto; }
+        .assistant-message { background: #f5f5f5; margin-right: auto; }
+        .message-time { font-size: 0.8em; color: #666; margin-top: 5px; }
+        
+        /* Chart and Sales Data */
+        .chart-container { margin-top: 20px; padding: 15px; background: #fff; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .sales-summary { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 10px; }
+        .sales-summary h3 { margin: 0 0 10px 0; color: #2c5282; }
+
+        .metric-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+        .metric-card { flex: 1 1 120px; background: #f0f4f8; border-radius: 8px; padding: 10px; text-align: center; }
+        .metric-value { font-size: 20px; font-weight: bold; }
+        .metric-label { font-size: 14px; color: #555; }
+        
+        /* Input Area */
+        .input-container { padding: 20px; border-top: 1px solid #eee; background: white; }
+        .input-form { display: flex; gap: 10px; }
+        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; }
+        button { padding: 12px 24px; background: #2c5282; color: white; border: none; border-radius: 8px; cursor: pointer; transition: background 0.3s; }
+        button:hover { background: #1a365d; }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Left Sidebar -->
+        <div class="dress-showcase">
+            <h2>Our Collection</h2>
+            <a href="/dashboard" class="dashboard-link">View Sales Dashboard</a>
+            
+            <!-- Dress cards -->
+            <div class="dress-card">
+                <img src="/static/images/premium_cotton.jpg" class="dress-image" alt="Premium Cotton Plain Dress">
+                <div class="dress-details">
+                    <h3>Premium Cotton Plain</h3>
+                    <p>100% Cotton, Premium Quality</p>
+                    <p class="dress-price">₹449</p>
+                </div>
+            </div>
+            
+            <div class="dress-card">
+                <img src="/static/images/silk_satin.jpg" class="dress-image" alt="Standard Silk Satin Dress">
+                <div class="dress-details">
+                    <h3>Standard Silk Satin</h3>
+                    <p>100% Silk, Standard Quality</p>
+                    <p class="dress-price">₹199</p>
+                </div>
+            </div>
+            
+            <div class="dress-card">
+                <img src="/static/images/premium_silk.jpg" class="dress-image" alt="Premium Silk Satin Dress">
+                <div class="dress-details">
+                    <h3>Premium Silk Satin</h3>
+                    <p>100% Silk, Premium Quality</p>
+                    <p class="dress-price">₹225</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Chat Container -->
+        <div class="chat-container">
+            <div class="chat-header">
+                <h2>👗 Fashion AI Assistant</h2>
+            </div>
+            
+            <div class="chat-history" id="chat-area">
+                <!-- Messages will be dynamically inserted here by JS -->
+            </div>
+
+            <div class="input-container">
+                <form id="chat-form" class="input-form" autocomplete="off">
+                    <input type="text" id="user-input" name="user_input" placeholder="Ask about sales by month or day (e.g., 'Show sales for May 2024' or 'Show sales for May 21')" required>
+                    <button type="submit">Send</button>
+                </form>
+            </div>
+            <div id="chart-section"></div>
+        </div>
+    </div>
+            <script>
+    // Store chat history in JS
+    let chatHistory = [];
+    function renderMessages() {
+        const chatArea = document.getElementById('chat-area');
+        chatArea.innerHTML = '';
+        chatHistory.forEach(msg => {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message ' + (msg.type === 'user' ? 'user-message' : 'assistant-message');
+            if (msg.type === 'assistant') {
+                // Render assistant message as Markdown
+                msgDiv.innerHTML = `<div class="message-content"><strong>Assistant:</strong> <span class='markdown-body'>${marked.parse(msg.text)}</span></div>`;
+            } else {
+                // Render user message as plain text
+                msgDiv.innerHTML = `<div class="message-content"><strong>You:</strong> ${msg.text}</div>`;
+            }
+            chatArea.appendChild(msgDiv);
+        });
+        chatArea.scrollTop = chatArea.scrollHeight;
+    }
+    document.getElementById('chat-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+        const userInput = document.getElementById('user-input').value;
+        if (!userInput.trim()) return;
+        chatHistory.push({type: 'user', text: userInput});
+        renderMessages();
+        document.getElementById('user-input').value = '';
+                fetch('/predict', {
+                    method: 'POST',
+            body: new URLSearchParams({user_input: userInput}),
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'}
+                })
+                .then(response => response.json())
+                .then(data => {
+            chatHistory.push({type: 'assistant', text: data.response});
+            renderMessages();
+            // Handle chart data if present
+                    if (data.chart_data) {
+                renderChart(data.chart_data, data.sales_date, data.best_seller, data.sales_data);
+            } else {
+                document.getElementById('chart-section').innerHTML = '';
+            }
+        });
+    });
+    function renderChart(chartData, salesDate, bestSeller, salesData) {
+        const chartSection = document.getElementById('chart-section');
+        chartSection.innerHTML = `
+            <div class="chart-container">
+                <canvas id="salesChart"></canvas>
+                <div class="sales-summary">
+                    <h3>Summary for ${salesDate}</h3>
+                    <p>🏆 Best Seller: ${bestSeller}</p>
+                </div>
+                <div class="metric-grid">
+                    ${Object.entries(salesData).map(([dress, quantity]) => `
+                                <div class="metric-card">
+                                    <div class="metric-value">${quantity}</div>
+                                    <div class="metric-label">${dress}</div>
+                                </div>
+                    `).join('')}
+        </div>
+    </div>
+        `;
+        const ctx = document.getElementById('salesChart');
+        new Chart(ctx, {
+            type: 'pie',
+            data: chartData,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { 
+                        position: 'bottom',
+                        labels: {
+                            font: { size: 14 }
+                        }
+                    },
+                    title: { 
+                        display: true, 
+                        text: `Sales Distribution for ${salesDate}`,
+                        font: { size: 16 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                let value = context.raw || 0;
+                                let total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                let percentage = ((value / total) * 100).toFixed(1);
+                                return `${label}: ${value} units (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    </script>
+</body>
+</html>
